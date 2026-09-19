@@ -503,8 +503,22 @@ public class MainActivity extends Activity {
                     float x = getX(c);
                     float y = getY(r);
 
-                    if (isNodeAvailable(r, c)) {
-                        canvas.drawCircle(x, y, radius, paint);
+                    if (!isNodeAvailable(r, c)) {
+                        // Unavailable Level 2 cells are intentionally dim and crossed out so
+                        // they cannot be mistaken for nodes that can be collected.
+                        paint.setColor(Color.rgb(20, 39, 50));
+                        canvas.drawCircle(x, y, 13, paint);
+
+                        paint.setStyle(Paint.Style.STROKE);
+                        paint.setStrokeWidth(2.5f);
+                        paint.setColor(Color.rgb(48, 91, 105));
+                        canvas.drawCircle(x, y, 10, paint);
+
+                        paint.setStrokeWidth(3f);
+                        canvas.drawLine(x - 6, y - 6, x + 6, y + 6, paint);
+                        canvas.drawLine(x + 6, y - 6, x - 6, y + 6, paint);
+                        paint.setStyle(Paint.Style.FILL);
+                        continue;
                     }
 
                     // =========================
@@ -679,13 +693,9 @@ public class MainActivity extends Activity {
 
             cycleWarningTime += 0.08f;
 
-            float pulse = (float) Math.sin(cycleWarningTime * 8f);
-
-            // Red screen flash
-            int alpha = (int) (35 + Math.abs(pulse) * 65);
-
+            // Keep the transition readable without repeatedly flashing the board red.
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(Color.argb(alpha, 255, 0, 0));
+            paint.setColor(Color.argb(110, 0, 0, 0));
 
             canvas.drawRect(0, 0, getWidth(), getHeight(), paint);
 

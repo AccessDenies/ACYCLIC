@@ -25,6 +25,20 @@ public class GameStateTest {
     }
 
     @Test
+    public void levelTwoKeepsItsDefinedUnavailableNodesNonPlayable() {
+        Board board = Board.forLevel(2);
+
+        assertFalse(board.isAvailable(1, 1));
+        assertFalse(board.isAvailable(2, 1));
+        assertFalse(board.isAvailable(3, 1));
+        assertFalse(board.isAvailable(4, 1));
+        assertFalse(board.isAvailable(7, 4));
+        assertFalse(board.isAvailable(7, 5));
+        assertEquals(42, board.getAvailableNodeCount());
+        assertTrue(board.isAvailable(1, 2));
+    }
+
+    @Test
     public void backtrackingRemovesTheLatestEdgeButKeepsCollectionProgress() {
         GameState state = new GameState(new Board(3, 3, Collections.<Integer>emptySet()));
 
