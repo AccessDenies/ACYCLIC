@@ -10,10 +10,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class MainActivity extends Activity {
 
@@ -28,8 +25,8 @@ public class MainActivity extends Activity {
 
         Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        int rows = 8;
-        int cols = 6;
+        final int rows = 8;
+        final int cols = 6;
 
         float cellSize;
         float startX;
@@ -40,11 +37,6 @@ public class MainActivity extends Activity {
 
         boolean isMoving = false;
 
-        int currentRow;
-        int currentCol;
-
-        int score = 0;
-
         boolean gameOver = false;
         boolean gameWon = false;
         boolean gameStarted = false;
@@ -53,18 +45,7 @@ public class MainActivity extends Activity {
 
         int currentLevel = 1;
 
-        List<Node> path = new ArrayList<>();
-
-        // ================= GRAPH SYSTEM =================
-
-        // Every node is a vertex.
-        // Every player connection is an edge.
-
-        Set<Integer> graphNodes = new HashSet<>();
-
-        // Stores undirected connections between nodes.
-        // Example: 1-2 and 2-1 are treated as the same edge.
-        Set<Long> graphEdges = new HashSet<>();
+        GameState gameState;
 
         float touchStartX;
         float touchStartY;
@@ -75,56 +56,8 @@ public class MainActivity extends Activity {
         boolean cycleWarning = false;
         float cycleWarningTime = 0f;
 
-        class Node {
-            int row;
-            int col;
-
-            Node(int row, int col) {
-                this.row = row;
-                this.col = col;
-            }
-        }
-
         boolean isNodeAvailable(int row, int col) {
-
-            // =========================
-            // LEVEL 1
-            // =========================
-
-            if (currentLevel == 1) {
-                return true;
-            }
-
-            // =========================
-            // LEVEL 2
-            // SOLVABLE PUZZLE LAYOUT
-            // =========================
-
-            if (currentLevel == 2) {
-
-                if ((row == 1 && col == 1)
-                        || (row == 2 && col == 1)
-                        || (row == 3 && col == 1)
-                        || (row == 4 && col == 1)
-                        || (row == 7 && col == 4)
-                        || (row == 7 && col == 5)) {
-
-                    return false;
-                }
-
-                return true;
-            }
-
-            // =========================
-            // LEVEL 3
-            // =========================
-
-            if (currentLevel == 3) {
-
-                return true;
-            }
-
-            return true;
+            return gameState.getBoard().isAvailable(row, col);
         }
 
         public GameView() {
@@ -141,10 +74,7 @@ public class MainActivity extends Activity {
         // =========================
 
         void startNewGame() {
-            path.clear();
-            graphNodes.clear();
-            graphEdges.clear();
-            score = 0;
+            gameState = new GameState(Board.forLevel(currentLevel));
             gameOver = false;
             gameWon = false;
             gameStarted = true;
@@ -156,15 +86,8 @@ public class MainActivity extends Activity {
             cycleWarning = false;
             cycleWarningTime = 0f;
 
-            currentRow = rows / 2;
-            currentCol = cols / 2;
-
-            path.add(new Node(currentRow, currentCol));
-
-            graphNodes.add(getNodeId(currentRow, currentCol));
-
-            playerX = getX(currentCol);
-            playerY = getY(currentRow);
+            playerX = getX(gameState.getCurrentCol());
+            playerY = getY(gameState.getCurrentRow());
             isMoving = false;
 
             invalidate();
@@ -486,7 +409,7 @@ public class MainActivity extends Activity {
             // Score
             paint.setTextSize(24);
 
-            String scoreText = "LEVEL " + currentLevel + "   •   SCORE: " + score;
+            String scoreText = "LEVEL " + currentLevel + "   •   SCORE: " + gameState.getScore();
 
             float scoreWidth = paint.measureText(scoreText);
 
@@ -618,6 +541,7 @@ public class MainActivity extends Activity {
 
         void drawPath(Canvas canvas) {
 
+            List<GameState.Position> path = gameState.getPath();
             if (path.size() < 1) {
                 return;
             }
@@ -632,15 +556,15 @@ public class MainActivity extends Activity {
 
             Path line = new Path();
 
-            Node first = path.get(0);
+            GameState.Position first = path.get(0);
 
-            line.moveTo(getX(first.col), getY(first.row));
+            line.moveTo(getX(first.getCol()), getY(first.getRow()));
 
             for (int i = 1; i < path.size(); i++) {
 
-                Node node = path.get(i);
+                GameState.Position node = path.get(i);
 
-                line.lineTo(getX(node.col), getY(node.row));
+                line.lineTo(getX(node.getCol()), getY(node.getRow()));
             }
 
             // Outer glow
@@ -667,10 +591,10 @@ public class MainActivity extends Activity {
 
             paint.setStyle(Paint.Style.FILL);
 
-            for (Node node : path) {
+            for (GameState.Position node : path) {
 
-                float x = getX(node.col);
-                float y = getY(node.row);
+                float x = getX(node.getCol());
+                float y = getY(node.getRow());
 
                 // Green outer glow
                 paint.setColor(Color.argb(40, 0, 255, 150));
@@ -695,8 +619,8 @@ public class MainActivity extends Activity {
 
         void drawCurrentNode(Canvas canvas) {
 
-            float targetX = getX(currentCol);
-            float targetY = getY(currentRow);
+            float targetX = getX(gameState.getCurrentCol());
+            float targetY = getY(gameState.getCurrentRow());
 
             // Smooth movement
             if (!isMoving) {
@@ -902,7 +826,7 @@ public class MainActivity extends Activity {
             paint.setTextSize(25);
             paint.setTypeface(android.graphics.Typeface.DEFAULT);
 
-            String scoreText = "Score: " + score;
+            String scoreText = "Score: " + gameState.getScore();
             float scoreWidth = paint.measureText(scoreText);
 
             canvas.drawText(scoreText, centerX - scoreWidth / 2f, boxTop + 125, paint);
@@ -987,7 +911,7 @@ public class MainActivity extends Activity {
             // Final score
             paint.setTextSize(24);
 
-            String finalScore = "Score: " + score;
+            String finalScore = "Score: " + gameState.getScore();
             float finalScoreWidth = paint.measureText(finalScore);
 
             canvas.drawText(finalScore, centerX - finalScoreWidth / 2f, boxTop + 175, paint);
@@ -1168,233 +1092,32 @@ public class MainActivity extends Activity {
             return startY + row * cellSize;
         }
 
-        int getNodeId(int row, int col) {
-            return row * cols + col;
-        }
-
-        long getEdgeKey(int nodeA, int nodeB) {
-
-            int smaller = Math.min(nodeA, nodeB);
-            int larger = Math.max(nodeA, nodeB);
-
-            return (((long) smaller) << 32) | (larger & 0xffffffffL);
-        }
-
-        boolean edgeExists(int nodeA, int nodeB) {
-            return graphEdges.contains(getEdgeKey(nodeA, nodeB));
-        }
-
-        // =========================
-        // CHECK GRID BOUNDARY
-        // =========================
-
-        boolean isInsideGrid(int row, int col) {
-
-            return row >= 0 && row < rows && col >= 0 && col < cols;
-        }
-
-        // =========================
-        // CHECK VISITED NODE
-        // =========================
-
-        boolean isVisited(int row, int col) {
-
-            for (Node node : path) {
-
-                if (node.row == row && node.col == col) {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
         // =========================
         // MOVE PLAYER
         // =========================
 
         void movePlayer(int newRow, int newCol) {
 
-            // Game end hone ke baad movement band
             if (gameOver || gameWon) {
                 return;
             }
 
-            // Grid ke bahar movement allowed nahi
-            if (!isInsideGrid(newRow, newCol)) {
-                return;
-            }
-
-            // Level ke unavailable node par movement allowed nahi
-            if (!isNodeAvailable(newRow, newCol)) {
-                return;
-            }
-
-            // Sirf adjacent node par move
-            int rowDifference = Math.abs(newRow - currentRow);
-            int colDifference = Math.abs(newCol - currentCol);
-
-            if (rowDifference + colDifference != 1) {
-                return;
-            }
-
-            // ==========================================
-            // CURRENT NODE → NEW NODE
-            // ==========================================
-
-            int currentId = getNodeId(currentRow, currentCol);
-            int nextId = getNodeId(newRow, newCol);
-
-            // ==========================================
-            // BACKTRACK
-            // ==========================================
-
-            if (path.size() >= 2) {
-
-                Node previousNode = path.get(path.size() - 2);
-
-                if (previousNode.row == newRow && previousNode.col == newCol) {
-
-                    // Current node = last node in path
-                    Node currentNode = path.get(path.size() - 1);
-
-                    currentId = getNodeId(currentNode.row, currentNode.col);
-
-                    int previousId = getNodeId(previousNode.row, previousNode.col);
-
-                    // Remove the connection we are backing out of.
-                    graphEdges.remove(getEdgeKey(currentId, previousId));
-
-                    // Remove current node from movement path.
-                    path.remove(path.size() - 1);
-
-                    // Move player back.
-                    currentRow = newRow;
-                    currentCol = newCol;
-
-                    // Score follows the current path.
-                    if (score > 0) {
-                        score--;
-                    }
-
-                    invalidate();
-
-                    return;
-                }
-            }
-
-            // ==========================================
-            // GRAPH CYCLE CHECK
-            // ==========================================
-
-            if (wouldCreateCycle(currentId, nextId)) {
-
+            GameState.MoveResult result = gameState.moveTo(newRow, newCol);
+            if (result == GameState.MoveResult.CYCLE_DETECTED) {
                 cycleWarning = true;
                 cycleWarningTime = 0f;
-
                 invalidate();
-
                 return;
             }
 
-            // Add the new vertex.
-            graphNodes.add(nextId);
-
-            // Add the new connection / edge.
-            graphEdges.add(getEdgeKey(currentId, nextId));
-
-            // Move player.
-            currentRow = newRow;
-            currentCol = newCol;
-
-            path.add(new Node(currentRow, currentCol));
-
-            score++;
-
-            // ==========================================
-            // WIN CHECK
-            // ==========================================
-
-            int totalAvailableNodes = 0;
-
-            for (int r = 0; r < rows; r++) {
-
-                for (int c = 0; c < cols; c++) {
-
-                    if (isNodeAvailable(r, c)) {
-                        totalAvailableNodes++;
-                    }
-                }
-            }
-
-            if (graphNodes.size() == totalAvailableNodes) {
-
+            if (result == GameState.MoveResult.WON) {
                 gameWon = true;
-
                 animationTime = 0f;
                 overlayAlpha = 0f;
-
                 Toast.makeText(MainActivity.this, "You Win!", Toast.LENGTH_SHORT).show();
             }
 
             invalidate();
-        }
-
-        boolean canReachNode(int startId, int targetId) {
-
-            if (startId == targetId) {
-                return true;
-            }
-
-            Set<Integer> visited = new HashSet<>();
-            List<Integer> stack = new ArrayList<>();
-
-            stack.add(startId);
-
-            while (!stack.isEmpty()) {
-
-                int current = stack.remove(stack.size() - 1);
-
-                if (current == targetId) {
-                    return true;
-                }
-
-                if (visited.contains(current)) {
-                    continue;
-                }
-
-                visited.add(current);
-
-                for (long edge : graphEdges) {
-
-                    int nodeA = (int) (edge >> 32);
-                    int nodeB = (int) edge;
-
-                    if (nodeA == current && !visited.contains(nodeB)) {
-                        stack.add(nodeB);
-                    }
-
-                    if (nodeB == current && !visited.contains(nodeA)) {
-                        stack.add(nodeA);
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        boolean wouldCreateCycle(int currentId, int nextId) {
-
-            // Existing edge ko dobara traverse karna
-            // naya cycle create nahi karta.
-            if (edgeExists(currentId, nextId)) {
-                return false;
-            }
-
-            // Agar current aur next node already existing
-            // graph ke through connected hain, to naya edge
-            // unke beech closed loop bana dega.
-            return canReachNode(currentId, nextId);
         }
 
         // =========================
@@ -1656,11 +1379,11 @@ public class MainActivity extends Activity {
 
                     if (dx > 0) {
 
-                        movePlayer(currentRow, currentCol + 1);
+                        movePlayer(gameState.getCurrentRow(), gameState.getCurrentCol() + 1);
 
                     } else {
 
-                        movePlayer(currentRow, currentCol - 1);
+                        movePlayer(gameState.getCurrentRow(), gameState.getCurrentCol() - 1);
                     }
 
                 }
@@ -1673,11 +1396,11 @@ public class MainActivity extends Activity {
 
                     if (dy > 0) {
 
-                        movePlayer(currentRow + 1, currentCol);
+                        movePlayer(gameState.getCurrentRow() + 1, gameState.getCurrentCol());
 
                     } else {
 
-                        movePlayer(currentRow - 1, currentCol);
+                        movePlayer(gameState.getCurrentRow() - 1, gameState.getCurrentCol());
                     }
                 }
 
