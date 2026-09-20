@@ -54,8 +54,8 @@ public final class GameState {
         graphNodes.clear();
         graphEdges.clear();
         score = 0;
-        currentRow = board.getRows() / 2;
-        currentCol = board.getCols() / 2;
+        currentRow = board.getStartRow();
+        currentCol = board.getStartCol();
 
         if (!board.isAvailable(currentRow, currentCol)) {
             throw new IllegalStateException("The board start position must be available");
@@ -99,7 +99,9 @@ public final class GameState {
         path.add(new Position(currentRow, currentCol));
         score++;
 
-        return graphNodes.size() == board.getAvailableNodeCount()
+        // Completion is based on unique visited playable nodes, not path length. Backtracking
+        // deliberately shortens the rendered path while retaining collection progress.
+        return graphNodes.size() == board.getPlayableNodeCount()
                 ? MoveResult.WON
                 : MoveResult.MOVED;
     }
